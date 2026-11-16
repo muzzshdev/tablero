@@ -126,8 +126,8 @@ dialog h3{font:600 20px/1 var(--serif);margin-bottom:16px}
   body{display:block}
   .side{position:fixed;inset:auto 0 0 0;top:auto;height:auto;width:auto;z-index:5;background:var(--surface);border:0;border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
   .brand,.side-foot{display:none}
-  nav{flex-direction:row}
-  nav button{flex:1;justify-content:center;font-size:12px;padding:9px 2px}
+  nav{flex-direction:row;overflow-x:auto}
+  nav button{flex:1 0 auto;justify-content:center;font-size:12px;padding:9px 7px}
   nav button em{display:none}
   main{padding:18px 16px 90px}
   .g4{grid-template-columns:1fr 1fr} .g2{grid-template-columns:1fr}
@@ -179,9 +179,10 @@ dialog h3{font:600 20px/1 var(--serif);margin-bottom:16px}
 
 <script>
 const KEY = 'tablero-estudio-v1';
-const COLORES = ['#2f7d6b','#c2603a','#4a6fb5','#b0489a','#8a7a1f','#6a52b3','#c0392b','#3a8fa3'];
+const COLORES = ['#2f7d6b','#c2603a','#4a6fb5','#b0489a','#8a7a1f','#6a52b3','#c0392b','#3a8fa3','#5c8a2e','#a8643c','#7a7f8c'];
+const MATS = ['Literatura','Matemáticas','Biología','Química','Salud y Adolescencia','Historia','Geografía','Educación Física','Inglés','Física','NTICx'];
 const VISTAS = {inicio:['Inicio','Tu panorama de hoy'], plan:['Plan','Cómo se reparte lo pendiente'], tareas:['Tareas','Todo lo que hay que hacer'],
-  examenes:['Exámenes','Fechas y preparación'], foco:['Foco','Pomodoro'], ajustes:['Ajustes','Materias, ritmo y datos']};
+  examenes:['Exámenes','Fechas y preparación'], materias:['Materias','Cómo venís en cada una'], foco:['Foco','Pomodoro'], ajustes:['Ajustes','Materias, ritmo y datos']};
 const defaults = () => ({materias:[], tareas:[], examenes:[], foco:[], cfg:{nombre:'', limite:'', minsDia:180, pomo:25, descanso:5, tema:''}});
 
 let S = defaults();
@@ -333,6 +334,17 @@ function vExamenes() {
     ${pas.length ? `<section class="card" style="margin-top:14px"><h2>Pasados</h2>${pas.map(card).join('')}</section>` : ''}`;
 }
 
+function vMaterias() {
+  return `<section class="card">${S.materias.map(m => {
+    const ts = S.tareas.filter(t => t.materiaId === m.id), h = ts.filter(t => t.done).length, p = ts.length - h;
+    const ex = S.examenes.filter(e => e.materiaId === m.id && e.date && diff(e.date) >= 0).sort(porFecha)[0];
+    return `<div class="row"><div class="row-main" data-a="vermat" data-id="${m.id}" tabindex="0"><b>${matTag(m.id)}</b>
+      <span class="meta"><span>${p ? `${p} pendiente${p > 1 ? 's' : ''}` : 'al día'}</span>${ts.length ? `<span>${h}/${ts.length} hechas</span>` : ''}${ex ? `<span class="${diff(ex.date) <= 3 ? 'warn' : ''}">examen ${enDias(diff(ex.date))}</span>` : ''}</span>
+      <div class="bar" style="margin-top:7px"><i style="width:${ts.length ? h / ts.length * 100 : 0}%;background:${esc(m.color)}"></i></div></div></div>`;
+  }).join('') || '<p class="empty">No hay materias. Agregalas en Ajustes.</p>'}</section>
+  <p class="empty" style="margin-top:10px">Tocá una materia para ver sus tareas. Para agregar, renombrar o quitar materias, andá a Ajustes.</p>`;
+}
+
 function vFoco() {
   const hoyS = S.foco.filter(f => f.d === hoy()), dias = [];
   for (let i = 6; i >= 0; i--) { const d = parse(hoy()); d.setDate(d.getDate() - i); const k = iso(d); dias.push({k, m: S.foco.filter(f => f.d === k).reduce((a, f) => a + f.m, 0)}); }
@@ -369,7 +381,7 @@ function render() {
   $('#titulo').textContent = VISTAS[vista][0]; $('#sub').textContent = VISTAS[vista][1];
   const n = pend().length;
   $('#nav').innerHTML = Object.keys(VISTAS).map(k => `<button class="${k === vista ? 'on' : ''}" data-a="ir" data-v="${k}">${VISTAS[k][0]}${k === 'tareas' && n ? `<em>${n}</em>` : ''}</button>`).join('');
-  $('#view').innerHTML = {inicio:vInicio, plan:vPlan, tareas:vTareas, examenes:vExamenes, foco:vFoco, ajustes:vAjustes}[vista]();
+  $('#view').innerHTML = {inicio:vInicio, plan:vPlan, tareas:vTareas, examenes:vExamenes, materias:vMaterias, foco:vFoco, ajustes:vAjustes}[vista]();
   pintarReloj();
 }
 function ir(v) { vista = v; history.replaceState(null, '', '#' + v); render(); window.scrollTo(0, 0); }
@@ -433,6 +445,7 @@ document.addEventListener('click', e => {
   else if (a === 'editar') abrir(tipo, id);
   else if (a === 'cerrar') $('#dlg').close();
   else if (a === 'borrar') { if (edit) { const k = edit.tipo === 'tarea' ? 'tareas' : 'examenes'; S[k] = S[k].filter(x => x.id !== edit.id); save(); } $('#dlg').close(); render(); }
+  else if (a === 'vermat') { filtro = {estado: 'pend', mat: id}; ir('tareas'); }
   else if (a === 'filtro') { filtro.estado = v; render(); }
   else if (a === 'tema') { const dark = (S.cfg.tema || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')) === 'dark'; S.cfg.tema = dark ? 'light' : 'dark'; save(); tema(); }
   else if (a === 'foco') { T.taskId = id || ''; ir('foco'); }
@@ -442,7 +455,7 @@ document.addEventListener('click', e => {
   else if (a === 'hechaFoco') { const t = S.tareas.find(x => x.id === T.taskId); if (t) t.done = true; T.taskId = ''; save(); render(); }
   else if (a === 'delmat') { S.materias = S.materias.filter(m => m.id !== id); save(); render(); }
   else if (a === 'exportar') { const u = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type: 'application/json'})); Object.assign(document.createElement('a'), {href: u, download: `tablero-${hoy()}.json`}).click(); URL.revokeObjectURL(u); }
-  else if (a === 'reset-todo') { if (confirm('¿Borrar todas las tareas, exámenes, materias y registros? No se puede deshacer.')) { S = defaults(); save(); tema(); render(); } }
+  else if (a === 'reset-todo') { if (confirm('¿Borrar todas las tareas, exámenes, materias y registros? No se puede deshacer.')) { S = defaults(); sembrar(); tema(); render(); } }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.row-main[data-a]')) e.target.click(); });
 document.addEventListener('change', e => {
@@ -459,7 +472,9 @@ document.addEventListener('input', e => { if (e.target.dataset.c === 'prep') { c
 document.addEventListener('submit', e => { if (e.target.id === 'addMat') { e.preventDefault(); materiaDe(e.target.n.value); save(); render(); } });
 
 function tema() { if (S.cfg.tema) document.documentElement.dataset.theme = S.cfg.tema; else delete document.documentElement.dataset.theme; }
-tema(); render();
+// Carga las materias una sola vez, así las que quites en Ajustes no vuelven.
+function sembrar() { if (!S.cfg.seed) { MATS.forEach(materiaDe); S.cfg.seed = 1; } save(); }
+sembrar(); tema(); render();
 </script>
 </body>
 </html>

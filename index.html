@@ -338,11 +338,12 @@ function vMaterias() {
   return `<section class="card">${S.materias.map(m => {
     const ts = S.tareas.filter(t => t.materiaId === m.id), h = ts.filter(t => t.done).length, p = ts.length - h;
     const ex = S.examenes.filter(e => e.materiaId === m.id && e.date && diff(e.date) >= 0).sort(porFecha)[0];
-    return `<div class="row"><div class="row-main" data-a="vermat" data-id="${m.id}" tabindex="0"><b>${matTag(m.id)}</b>
-      <span class="meta"><span>${p ? `${p} pendiente${p > 1 ? 's' : ''}` : 'al día'}</span>${ts.length ? `<span>${h}/${ts.length} hechas</span>` : ''}${ex ? `<span class="${diff(ex.date) <= 3 ? 'warn' : ''}">examen ${enDias(diff(ex.date))}</span>` : ''}</span>
+    return `<div class="row ${m.ok ? 'done' : ''}"><input type="checkbox" data-c="aprob" data-id="${m.id}" ${m.ok ? 'checked' : ''} title="Ya la aprobé" aria-label="Ya aprobé ${esc(m.name)}">
+      <div class="row-main" data-a="vermat" data-id="${m.id}" tabindex="0"><b>${matTag(m.id)}</b>
+      <span class="meta">${m.ok ? '<span style="color:var(--ok)">aprobada</span>' : ''}<span>${p ? `${p} pendiente${p > 1 ? 's' : ''}` : 'al día'}</span>${ts.length ? `<span>${h}/${ts.length} hechas</span>` : ''}${ex ? `<span class="${diff(ex.date) <= 3 ? 'warn' : ''}">examen ${enDias(diff(ex.date))}</span>` : ''}</span>
       <div class="bar" style="margin-top:7px"><i style="width:${ts.length ? h / ts.length * 100 : 0}%;background:${esc(m.color)}"></i></div></div></div>`;
   }).join('') || '<p class="empty">No hay materias. Agregalas en Ajustes.</p>'}</section>
-  <p class="empty" style="margin-top:10px">Tocá una materia para ver sus tareas. Para agregar, renombrar o quitar materias, andá a Ajustes.</p>`;
+  <p class="empty" style="margin-top:10px">Tildá las que ya aprobaste. Tocá una materia para ver sus tareas. Para agregar, renombrar o quitar materias, andá a Ajustes.</p>`;
 }
 
 function vFoco() {
@@ -461,6 +462,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.ma
 document.addEventListener('change', e => {
   const el = e.target, {c, id, cfg, m} = el.dataset;
   if (c === 'toggle') { const t = S.tareas.find(x => x.id === id); t.done = el.checked; save(); render(); }
+  else if (c === 'aprob') { mat(id).ok = el.checked; save(); render(); }
   else if (c === 'fmat') { filtro.mat = el.value; render(); }
   else if (c === 'ftask') { T.taskId = el.value; render(); }
   else if (c === 'importar') { const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!Array.isArray(d.tareas) || !Array.isArray(d.examenes)) throw 0;
